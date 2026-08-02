@@ -7,16 +7,13 @@
     <title>📋 دفترچه مغازه و مدیریت مالی</title>
     
     <!-- Tailwind CSS -->
-    <script src="vendor/tailwind.js"></script>
-    <link rel="stylesheet" href="vendor/fontawesome.css">
-    <style>
-      @font-face{font-family:'Vazirmatn';src:url('vendor/fonts/vazirmatn.woff2') format('woff2');font-weight:100 600;font-display:swap;}
-      @font-face{font-family:'Vazirmatn';src:url('vendor/fonts/vazirmatn-bold.woff2') format('woff2');font-weight:700 900;font-display:swap;}
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
 
     <!-- Tarikhpicker (Persian Calendar Library) -->
-    <link rel="stylesheet" href="vendor/jalalidatepicker.min.css">
-    <script type="text/javascript" src="vendor/jalalidatepicker.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"></script>
 
     <style>
         * { font-family: 'Vazirmatn', sans-serif; }
@@ -278,8 +275,6 @@
     </div>
 
     <script>
-        window.__getEntries = () => entries;
-        window.__getIdCounter = () => idCounter;
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_w0D6mdrIPwEKjiz9RN3OupWLnkjnlYy9LKSVFmgsqF8oKZztvrKADm5LLIVTWih83w/exec';
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -290,8 +285,23 @@
                     else if (typeof jalaliDatepicker.startPub === 'function') jalaliDatepicker.startPub(opts);
                 }
             } catch (e) { console.warn('datepicker', e); }
-        });
 
+            // باز شدن تقویم شمسی با کلیک روی فیلد تاریخ
+            const dateInput = document.getElementById('itemDate');
+            if (dateInput) {
+                dateInput.setAttribute('readonly', 'readonly');
+                const openPicker = (ev) => {
+                    ev.preventDefault();
+                    try {
+                        if (typeof jalaliDatepicker !== 'undefined' && typeof jalaliDatepicker.show === 'function') {
+                            jalaliDatepicker.show(dateInput);
+                        }
+                    } catch (e) { console.warn('datepicker show', e); }
+                };
+                dateInput.addEventListener('click', openPicker);
+                dateInput.addEventListener('focus', openPicker);
+            }
+        });
 
         // تبدیل تاریخ شمسی به عدد قابل مقایسه (سازگار با 1405/5/5 و 1405/05/05)
         function dateSortKey(str) {
@@ -420,7 +430,7 @@
                 statusText.className = 'text-green-600 font-bold';
             } else if (state === 'syncing') {
                 statusDot.className = 'status-dot status-syncing';
-                statusText.textContent = '🔄 در حال ارتباط...';
+                statusText.textContent = 'connecting';
                 statusText.className = 'text-yellow-600';
             } else {
                 statusDot.className = 'status-dot status-disconnected';
@@ -729,6 +739,14 @@
             const endIdx = startIdx + rowsPerPage;
             const paginatedItems = filtered.slice(startIdx, endIdx);
 
+            // جمع مبلغ هر روز (بر اساس همان فیلتر جاری)
+            const dayTotals = {};
+            filtered.forEach(e => {
+                const t = dayTotals[e.date] || (dayTotals[e.date] = { in: 0, out: 0, count: 0 });
+                t.count++;
+                if (e.type === 'خروج') t.out += e.price; else t.in += e.price;
+            });
+
             let html = '';
             let lastDate = ''; 
 
@@ -740,7 +758,14 @@
                     html += `
                         <tr class="bg-blue-50/80">
                             <td colspan="9" class="px-4 py-2 text-xs font-bold text-blue-800">
-                                <i class="fa-regular fa-calendar-days ml-1"></i> روز: ${e.date} (${getShamsiDayName(e.date)})
+                                <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 w-full">
+                                    <span><i class="fa-regular fa-calendar-days ml-1"></i> روز: ${e.date} (${getShamsiDayName(e.date)})</span>
+                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        <span class="text-green-700">📥 ورود: ${formatNumberWithCommas(dayTotals[e.date].in)}</span>
+                                        <span class="text-red-700">📤 خروج: ${formatNumberWithCommas(dayTotals[e.date].out)}</span>
+                                        <span class="text-blue-900">📊 جمع روز: ${formatNumberWithCommas(dayTotals[e.date].in - dayTotals[e.date].out)} تومان</span>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     `;
@@ -1006,6 +1031,5 @@ function getShamsiDayName(shamsiDateStr) {
     return weekDaysMap[gDay] || '';
 }
     </script>
-    <script src="native-backup.js"></script>
 </body>
 </html>
