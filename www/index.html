@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <title>📋 دفترچه مغازه و مدیریت مالی</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="vendor/tailwind.js"></script>
+    <link rel="stylesheet" href="vendor/fontawesome.css">
+    <style>
+      @font-face{font-family:'Vazirmatn';src:url('vendor/fonts/vazirmatn.woff2') format('woff2');font-weight:100 600;font-display:swap;}
+      @font-face{font-family:'Vazirmatn';src:url('vendor/fonts/vazirmatn-bold.woff2') format('woff2');font-weight:700 900;font-display:swap;}
+    </style>
+
+    <!-- Tarikhpicker (Persian Calendar Library) -->
+    <link rel="stylesheet" href="vendor/jalalidatepicker.min.css">
+    <script type="text/javascript" src="vendor/jalalidatepicker.min.js"></script>
+
+    <style>
+        * { font-family: 'Vazirmatn', sans-serif; }
+        body { background: #f0f4f8; }
+        .price-input { direction: ltr; text-align: left; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .delete-btn, .edit-btn { transition: all 0.2s; }
+        .delete-btn:hover { transform: scale(1.1); color: #dc2626 !important; }
+        .edit-btn:hover { transform: scale(1.1); color: #2563eb !important; }
+        .editing-mode { border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 6px;
+        }
+        .status-connected { background: #22c55e; }
+        .status-syncing { background: #eab308; animation: pulse 1s infinite; }
+        .status-disconnected { background: #ef4444; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+            .glass-card, .shadow-xl, .shadow { box-shadow: none !important; border: none !important; }
+            table { width: 100% !important; border-collapse: collapse !important; }
+            th, td { border: 1px solid #cbd5e1 !important; padding: 6px !important; color: #000 !important; }
+            .print-invoice-header { display: block !important; }
+        }
+        .print-invoice-header { display: none; }
+
+        /* ===== بهینه‌سازی نمایش تراکنش‌ها برای موبایل (کارتی) ===== */
+        @media (max-width: 700px) {
+            #entriesBody, #entriesBody tr, #entriesBody td, table thead { display: block; width: 100%; }
+            table thead { display: none; }
+            #entriesBody tr {
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                margin-bottom: 10px;
+                padding: 8px 10px;
+                box-shadow: 0 2px 8px rgba(15,23,42,.05);
+            }
+            #entriesBody tr.day-header {
+                background: #eff6ff;
+                border-color: #bfdbfe;
+                padding: 8px 10px;
+            }
+            #entriesBody td {
+                display: flex; align-items: center; justify-content: space-between;
+                gap: 10px; padding: 5px 2px !important; border: none;
+                font-size: 13px; text-align: left;
+            }
+            #entriesBody td::before {
+                content: attr(data-label);
+                font-size: 11px; font-weight: 700; color: #64748b; flex: 0 0 auto;
+            }
+            #entriesBody td[data-label=""]::before { content: none; }
+            #entriesBody td[data-label="انتخاب"], #entriesBody td.cell-index { display: inline-flex; width: auto; vertical-align: middle; }
+            #entriesBody td[data-label="انتخاب"]::before { content: none; }
+            #entriesBody td.cell-index::before { content: "ردیف"; }
+            #entriesBody td.cell-actions { justify-content: flex-end; gap: 18px; padding-top: 8px !important; border-top: 1px dashed #e2e8f0 !important; }
+            #entriesBody td.cell-actions::before { content: "عملیات"; margin-left: auto; }
+            #entriesBody td.cell-note { max-width: none !important; white-space: normal !important; }
+            #entriesBody td.cell-index { color:#94a3b8; }
+            .day-header td { text-align: right !important; }
+            #paginationContainer button { padding: 8px 12px !important; }
+        }
+
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        
+       <!-- هدر اصلی و منوی بالا (اصلاح‌شده و مرتب) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 md:p-4 mb-6 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3 md:gap-4 no-print">
+            
+            <!-- عنوان و وضعیت اتصال (سمت راست) -->
+            <div class="flex flex-wrap items-center justify-between w-full lg:w-auto gap-2 md:gap-4">
+                <h1 class="text-lg md:text-2xl font-extrabold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-screwdriver-wrench text-blue-600 text-xl"></i>
+                    دفترچه مغازه
+                    <span class="text-[11px] font-normal text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">☁️ هوشمند</span>
+                </h1>
+                
+                <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 text-xs">
+                    <span class="status-dot status-disconnected" id="statusDot"></span>
+                    <span id="statusText" class="text-gray-600 font-medium">در حال بررسی...</span>
+                </div>
+            </div>
+
+            <!-- دکمه‌های عملیاتی و مدیریتی (سمت چپ) -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap items-stretch md:items-center justify-center gap-2 w-full lg:w-auto">
+                <button onclick="connectToCloud()" class="bg-slate-50 text-blue-600 border border-blue-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-blue-50 transition text-xs font-medium flex items-center gap-1.5 shadow-xs">
+                    <i class="fa-solid fa-rotate"></i> اتصال
+                </button>
+                <button onclick="settleAndResetPeriod()" class="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-amber-100 transition text-xs font-medium flex items-center gap-1.5 shadow-xs">
+                    <i class="fa-solid fa-coins"></i> تسویه دوره
+                </button>
+                <button onclick="window.print()" class="bg-slate-900 text-white px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-slate-800 transition text-xs font-medium flex items-center gap-1.5 shadow-xs">
+                    <i class="fa-solid fa-print"></i> فاکتور / PDF
+                </button>
+                <button onclick="manualBackup()" class="bg-slate-50 text-slate-700 border border-slate-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-slate-100 transition text-xs font-medium flex items-center gap-1.5 shadow-xs" title="دانلود فایل پشتیبان">
+                    <i class="fa-solid fa-download"></i> دانلود
+                </button>
+             
+                <button onclick="document.getElementById('restoreInput').click()" class="bg-slate-50 text-slate-700 border border-slate-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-slate-100 transition text-xs font-medium flex items-center gap-1.5 shadow-xs">
+                    <i class="fa-solid fa-upload"></i> بارگذاری
+                </button>
+                <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="restoreBackup(event)">
+                <button onclick="exportCSV()" class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-emerald-100 transition text-xs font-medium flex items-center gap-1.5 shadow-xs">
+                    <i class="fa-solid fa-file-csv"></i> CSV
+                </button>
+                <button onclick="deleteSelectedEntries()" class="bg-rose-50 text-rose-600 border border-rose-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-rose-100 transition text-xs font-medium flex items-center gap-1.5 shadow-xs">
+                    <i class="fa-solid fa-trash-can"></i> حذف تیک‌خورده‌ها
+                </button>
+              <button onclick="lockAppManually()" class="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-slate-200 transition text-xs font-medium flex items-center gap-1.5 shadow-xs" title="قفل کردن برنامه">
+    <i class="fa-solid fa-lock"></i> قفل
+</button>
+            </div>
+        </div>
+
+        <!-- هدر مخصوص چاپ (فاکتور رسمی) -->
+        <div class="print-invoice-header mb-6 text-center border-b-2 pb-4 border-gray-800">
+            <h2 class="text-2xl font-bold">صورتحساب و گزارش مالی مغازه</h2>
+            <p class="text-sm text-gray-600 mt-1">تاریخ گزارش: <span id="printDate"></span></p>
+        </div>
+
+        <!-- فرم ثبت -->
+        <div class="glass-card rounded-2xl shadow-xl p-6 mb-6 fade-in no-print">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <!-- نام کالا -->
+                <div class="md:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fa-solid fa-tag text-blue-500 ml-1"></i> نام کالا / عنوان تراکنش
+                    </label>
+                    <input type="text" id="itemName" placeholder="مثال: اسپیکر JBL..." 
+                           class="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-400 outline-none transition bg-white">
+                </div>
+                <!-- گروه -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fa-solid fa-layer-group text-purple-500 ml-1"></i> گروه
+                    </label>
+                    <select id="itemCategory" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                        <option value="دریافت روزانه">💵 دریافت روزانه</option>
+                        <option value="اسپیکر">🔊 اسپیکر</option>
+                        <option value="هدفون">🎧 هدفون</option>
+                        <option value="هندزفری">🎧 هندزفری</option>
+                        <option value="ایر پاد">🎧 ایر پاد</option>
+                        <option value="سایر">📦 سایر</option>
+                    </select>
+                </div>
+                <!-- نوع -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fa-solid fa-arrow-right-arrow-left text-orange-500 ml-1"></i> نوع
+                    </label>
+                    <select id="itemType" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                        <option value="ورود">➕ ورود</option>
+                        <option value="خروج">➖ خروج</option>
+                    </select>
+                </div>
+                <!-- مبلغ -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fa-solid fa-coins text-yellow-500 ml-1"></i> مبلغ (تومان)
+                    </label>
+                    <input type="text" id="itemPrice" placeholder="۰" 
+                           class="price-input w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-400 outline-none transition bg-white">
+                </div>
+                <!-- دکمه ثبت -->
+                <div class="md:col-span-3 flex items-end gap-2">
+                    <button id="addBtn" class="flex-1 bg-blue-600 text-white rounded-xl px-4 py-2.5 hover:bg-blue-700 transition font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                        <i class="fa-solid fa-plus"></i> ثبت تراکنش
+                    </button>
+                    <button id="cancelEditBtn" class="hidden bg-gray-400 text-white rounded-xl px-3 py-2.5 hover:bg-gray-500 transition font-bold shadow-md" onclick="cancelEdit()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ردیف دوم فرم (تاریخ شمسی و توضیحات) -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
+                <div class="md:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fa-regular fa-calendar text-gray-500 ml-1"></i> تاریخ (شمسی)
+                    </label>
+                    <input type="text" id="itemDate" data-jdp placeholder="1405/05/02" autocomplete="off"
+                           class="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-white outline-none font-mono text-center text-sm cursor-pointer">
+                </div>
+                <div class="md:col-span-9">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fa-regular fa-note-sticky text-gray-500 ml-1"></i> توضیحات (اختیاری)
+                    </label>
+                    <input type="text" id="itemNote" placeholder="مثلاً: توضیحات تکمیلی..." 
+                           class="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-400 outline-none transition bg-white">
+                </div>
+            </div>
+
+            <div id="editAlert" class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square"></i>
+                در حال ویرایش: <span id="editNameDisplay" class="font-bold"></span>
+            </div>
+        </div>
+
+        <!-- خلاصه آمار -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow p-4 border-r-4 border-green-500">
+                <div class="text-sm text-gray-500">📥 کل ورود و دریافتی</div>
+                <div class="text-xl font-bold text-green-600" id="totalIn">۰</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-r-4 border-red-500">
+                <div class="text-sm text-gray-500">📤 کل خروج و هزینه</div>
+                <div class="text-xl font-bold text-red-600" id="totalOut">۰</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-r-4 border-blue-500">
+                <div class="text-sm text-gray-500">📊 موجودی خالص</div>
+                <div class="text-xl font-bold text-blue-600" id="balance">۰</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-r-4 border-purple-500">
+                <div class="text-sm text-gray-500">📋 تعداد تراکنش‌ها</div>
+                <div class="text-xl font-bold text-purple-600" id="totalCount">۰</div>
+            </div>
+        </div>
+
+        <!-- جستجو و مرتب‌سازی -->
+        <div class="flex flex-wrap gap-3 mb-4 no-print items-center justify-between">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" id="searchInput" placeholder="🔍 جستجو در نام، گروه یا توضیحات..." 
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-600 font-medium">ترتیب نمایش:</label>
+                <select id="sortOrder" onchange="render()" class="border border-gray-300 rounded-xl px-3 py-2 bg-white text-xs outline-none">
+                    <option value="desc">جدیدترین در ابتدا</option>
+                    <option value="asc">قدیمی‌ترین در ابتدا</option>
+                </select>
+                <button onclick="resetFilters()" class="bg-gray-200 px-3 py-2.5 rounded-xl w-full md:w-auto justify-center hover:bg-gray-300 transition text-xs">
+                    ریست
+                </button>
+            </div>
+        </div>
+
+        <!-- جدول -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100 border-b-2 border-gray-200">
+                        <tr>
+                            <!-- ستون چک‌باکس انتخاب همه -->
+                            <th class="px-4 py-3 text-right">
+                                <input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                            </th>
+                            <th class="px-4 py-3 text-right">#</th>
+                            <th class="px-4 py-3 text-right">عنوان / نام کالا</th>
+                            <th class="px-4 py-3 text-right">گروه</th>
+                            <th class="px-4 py-3 text-right">نوع</th>
+                            <th class="px-4 py-3 text-right">مبلغ (تومان)</th>
+                            <th class="px-4 py-3 text-right">تاریخ (شمسی)</th>
+                            <th class="px-4 py-3 text-right">توضیحات</th>
+                            <th class="px-4 py-3 text-center no-print">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="entriesBody">
+                        <tr>
+                            <td colspan="9" class="text-center py-8 text-gray-400">
+                                <i class="fa-regular fa-face-smile text-3xl block mb-2"></i>
+                                هیچ موردی ثبت نشده است.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-400 text-xs mt-6 no-print">
+            <i class="fa-regular fa-copyright"></i> ۱۴۰۵ - سیستم مدیریت مالی مغازه
+        </div>
+    </div>
+
+    <script>
+        window.__getEntries = () => entries;
+        window.__getIdCounter = () => idCounter;
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_w0D6mdrIPwEKjiz9RN3OupWLnkjnlYy9LKSVFmgsqF8oKZztvrKADm5LLIVTWih83w/exec';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                const opts = { persianDigits: false, format: "YYYY/MM/DD", autoClose: true };
+                if (typeof jalaliDatepicker !== 'undefined') {
+                    if (typeof jalaliDatepicker.startWatch === 'function') jalaliDatepicker.startWatch(opts);
+                    else if (typeof jalaliDatepicker.startPub === 'function') jalaliDatepicker.startPub(opts);
+                }
+            } catch (e) { console.warn('datepicker', e); }
+
+            // باز شدن تقویم شمسی با کلیک روی فیلد تاریخ
+            const dateInput = document.getElementById('itemDate');
+            if (dateInput) {
+                dateInput.setAttribute('readonly', 'readonly');
+                const openPicker = (ev) => {
+                    ev.preventDefault();
+                    try {
+                        if (typeof jalaliDatepicker !== 'undefined' && typeof jalaliDatepicker.show === 'function') {
+                            jalaliDatepicker.show(dateInput);
+                        }
+                    } catch (e) { console.warn('datepicker show', e); }
+                };
+                dateInput.addEventListener('click', openPicker);
+                dateInput.addEventListener('focus', openPicker);
+            }
+        });
+
+
+        // تبدیل تاریخ شمسی به عدد قابل مقایسه (سازگار با 1405/5/5 و 1405/05/05)
+        function dateSortKey(str) {
+            const p = String(str || '').split('/').map(n => parseInt(n, 10) || 0);
+            return (p[0] || 0) * 10000 + (p[1] || 0) * 100 + (p[2] || 0);
+        }
+
+        // یکدست‌سازی نگارش تاریخ به شکل 1405/05/05
+        function normalizeShamsiDate(str) {
+            const p = String(str || '').split('/');
+            if (p.length !== 3) return str;
+            const y = parseInt(p[0], 10), m = parseInt(p[1], 10), d = parseInt(p[2], 10);
+            if (!y || !m || !d) return str;
+            return `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
+        }
+
+        function getTodayShamsi() {
+            const d = new Date();
+            let gy = d.getFullYear();
+            let gm = d.getMonth() + 1;
+            let gd = d.getDate();
+
+            let g_days_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+            let gy2 = (gm > 2) ? (gy + 1) : gy;
+            let days = 355666 + (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) + gd;
+            for (let i = 0; i < gm - 1; ++i) days += g_days_month[i];
+            
+            let jy = -1595 + (33 * Math.floor(days / 12053));
+            days %= 12053;
+            jy += 4 * Math.floor(days / 1461);
+            days %= 1461;
+            if (days > 365) {
+                jy += Math.floor((days - 1) / 365);
+                days = (days - 1) % 365;
+            }
+            let jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+            let jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+
+            return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
+        }
+
+        let entries = [];
+        let idCounter = 0;
+        let editingId = null;
+        let isCloudConnected = false;
+      
+        let currentPage = 1;
+        const rowsPerPage = 15;
+
+        const itemName = document.getElementById('itemName');
+        const itemCategory = document.getElementById('itemCategory');
+        const itemType = document.getElementById('itemType');
+        const itemPrice = document.getElementById('itemPrice');
+        const itemDate = document.getElementById('itemDate');
+        const itemNote = document.getElementById('itemNote');
+        const addBtn = document.getElementById('addBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const editAlert = document.getElementById('editAlert');
+        const editNameDisplay = document.getElementById('editNameDisplay');
+        const tbody = document.getElementById('entriesBody');
+        const totalInSpan = document.getElementById('totalIn');
+        const totalOutSpan = document.getElementById('totalOut');
+        const balanceSpan = document.getElementById('balance');
+        const totalCountSpan = document.getElementById('totalCount');
+        const searchInput = document.getElementById('searchInput');
+        const printDate = document.getElementById('printDate');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const sortOrder = document.getElementById('sortOrder');
+
+        const todayStr = getTodayShamsi();
+        itemDate.value = todayStr;
+        printDate.textContent = todayStr;
+
+        itemType.addEventListener('change', function() {
+            if(this.value === 'دریافت روزانه') {
+                itemCategory.value = 'دریافت روزانه';
+            }
+        });
+
+        async function connectToCloud() {
+            if (!GOOGLE_SCRIPT_URL) return;
+            updateStatus('syncing');
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL);
+                const result = await response.json();
+                
+                if (result.success && result.entries) {
+                    entries = result.entries || [];
+                    if (entries.length > 0) {
+                        idCounter = Math.max(...entries.map(e => e.id || 0));
+                    }
+                    isCloudConnected = true;
+                    updateStatus(true);
+                    render();
+                } else {
+                    throw new Error('داده‌ای یافت نشد');
+                }
+            } catch (error) {
+                console.error(error);
+                updateStatus(false);
+            }
+        }
+
+        async function syncToCloud() {
+            if (!GOOGLE_SCRIPT_URL || !isCloudConnected) return;
+            try {
+                updateStatus('syncing');
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entries: entries, idCounter: idCounter })
+                });
+                updateStatus(true);
+            } catch (err) {
+                console.error(err);
+                updateStatus(false);
+            }
+        }
+
+        function updateStatus(state) {
+            if (state === true) {
+                statusDot.className = 'status-dot status-connected';
+                statusText.textContent = '☁️ متصل';
+                statusText.className = 'text-green-600 font-bold';
+            } else if (state === 'syncing') {
+                statusDot.className = 'status-dot status-syncing';
+                statusText.textContent = 'connecting';
+                statusText.className = 'text-yellow-600';
+            } else {
+                statusDot.className = 'status-dot status-disconnected';
+                statusText.textContent = '💻 حالت مستقل (فایل / محلی)';
+                statusText.className = 'text-gray-600';
+            }
+        }
+
+        function formatNumberWithCommas(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function parseNumberFromComma(str) {
+            return parseInt(str.replace(/,/g, ''), 10) || 0;
+        }
+
+        function applyThousandSeparator(input) {
+            let raw = input.value.replace(/,/g, '');
+            if (raw === '') { input.value = ''; return; }
+            let num = parseInt(raw, 10);
+            if (!isNaN(num)) {
+                input.value = formatNumberWithCommas(num);
+            } else {
+                let digits = raw.replace(/\D/g, '');
+                if (digits === '') { input.value = ''; } else {
+                    let num2 = parseInt(digits, 10);
+                    if (!isNaN(num2)) input.value = formatNumberWithCommas(num2);
+                }
+            }
+        }
+
+        function manualBackup() {
+            if (entries.length === 0) {
+                alert('هیچ اطلاعاتی برای ذخیره وجود ندارد.');
+                return;
+            }
+            const data = { entries: entries, idCounter: idCounter, version: '3.7' };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `مغازه_داده‌ها_${getTodayShamsi().replace(/\//g, '-')}.json`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        async function restoreBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data.entries || !Array.isArray(data.entries)) {
+                        alert('ساختار فایل معتبر نیست.');
+                        return;
+                    }
+                    entries = data.entries || [];
+                    idCounter = data.idCounter || 0;
+                    render();
+                    await syncToCloud();
+                    alert('✅ اطلاعات از فایل با موفقیت بارگذاری و در ابر ذخیره شد.');
+                } catch (err) {
+                    alert('خطا در خواندن فایل: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function settleAndResetPeriod() {
+            if (entries.length === 0) {
+                alert('تراکنشی برای تسویه وجود ندارد.');
+                return;
+            }
+            
+            let totalIn = 0, totalOut = 0;
+            entries.forEach(e => {
+                if (e.type === 'ورود' || e.type === 'دریافت روزانه') totalIn += e.price;
+                else if (e.type === 'خروج') totalOut += e.price;
+            });
+            let netBalance = totalIn - totalOut;
+
+            if (!confirm(`💵 تسویه دوره حساب:\nکل دریافتی: ${formatNumberWithCommas(totalIn)} تومان\nکل هزینه: ${formatNumberWithCommas(totalOut)} تومان\nموجودی تسویه: ${formatNumberWithCommas(netBalance)} تومان\n\nآیا تایید می‌کنید؟ با این کار جدول برای دوره جدید خالی می‌شود.`)) {
+                return;
+            }
+
+            manualBackup();
+            entries = [];
+            idCounter = 0;
+            render();
+            syncToCloud();
+            alert('✅ تسویه حساب انجام شد و دوره جدید آغاز گشت.');
+        }
+
+        async function addEntry() {
+            const name = itemName.value.trim();
+            const category = itemCategory.value;
+            const type = itemType.value;
+            let priceRaw = itemPrice.value.trim();
+            const date = normalizeShamsiDate(itemDate.value.trim() || getTodayShamsi());
+            const note = itemNote.value.trim();
+
+            if (name === '') {
+                alert('لطفاً نام کالا یا عنوان تراکنش را وارد کنید.');
+                itemName.focus();
+                return;
+            }
+
+            let price = parseNumberFromComma(priceRaw);
+            if (isNaN(price) || price <= 0) {
+                alert('لطفاً مبلغ معتبر (بزرگتر از صفر) وارد کنید.');
+                itemPrice.focus();
+                return;
+            }
+
+            if (editingId !== null) {
+                const idx = entries.findIndex(e => e.id === editingId);
+                if (idx > -1) {
+                    entries[idx] = { ...entries[idx], name, category, type, price, date, note };
+                }
+                editingId = null;
+                cancelEditBtn.classList.add('hidden');
+                editAlert.classList.add('hidden');
+                addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> ثبت تراکنش';
+                document.querySelectorAll('.editing-mode').forEach(el => el.classList.remove('editing-mode'));
+            } else {
+                entries.push({ id: ++idCounter, name, category, type, price, date, note });
+            }
+
+            itemName.value = '';
+            itemPrice.value = '';
+            itemNote.value = '';
+            itemDate.value = getTodayShamsi();
+            itemName.focus();
+
+            render();
+            await syncToCloud();
+        }
+
+        async function deleteEntry(id) {
+            if (!confirm('آیا از حذف این آیتم مطمئن هستید؟')) return;
+            entries = entries.filter(e => e.id !== id);
+            render();
+            await syncToCloud();
+        }
+
+        function editEntry(id) {
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+
+            editingId = id;
+            itemName.value = entry.name;
+            itemCategory.value = entry.category;
+            itemType.value = entry.type;
+            itemPrice.value = formatNumberWithCommas(entry.price);
+            itemDate.value = entry.date || getTodayShamsi();
+            itemNote.value = entry.note || '';
+
+            cancelEditBtn.classList.remove('hidden');
+            editAlert.classList.remove('hidden');
+            editNameDisplay.textContent = entry.name;
+            addBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> به‌روزرسانی';
+            document.querySelectorAll('input, select').forEach(el => el.classList.add('editing-mode'));
+            itemName.focus();
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            cancelEditBtn.classList.add('hidden');
+            editAlert.classList.add('hidden');
+            addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> ثبت تراکنش';
+            document.querySelectorAll('.editing-mode').forEach(el => el.classList.remove('editing-mode'));
+            itemName.value = '';
+            itemPrice.value = '';
+            itemNote.value = '';
+            itemDate.value = getTodayShamsi();
+        }
+
+        function exportCSV() {
+            if (entries.length === 0) {
+                alert('هیچ داده‌ای برای خروجی وجود ندارد.');
+                return;
+            }
+
+            const headers = ['ردیف', 'گروه', 'نام کالا یا عنوان', 'نوع', 'مبلغ', 'تاریخ (شمسی)', 'توضیحات'];
+            let csv = '\uFEFF' + headers.join(',') + '\n';
+
+            entries.forEach((e, i) => {
+                const row = [
+                    i + 1,
+                    e.category,
+                    `"${e.name}"`,
+                    e.type,
+                    e.price,
+                    e.date,
+                    `"${e.note || ''}"`
+                ];
+                csv += row.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `گزارش_مغازه_${getTodayShamsi().replace(/\//g, '-')}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        function resetFilters() {
+            searchInput.value = '';
+            render();
+        }
+
+        // توابع جدید برای مدیریت تیک‌ها و حذف دسته‌جمعی
+        function toggleSelectAll(masterCheckbox) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+        }
+
+        async function deleteSelectedEntries() {
+            const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('لطفاً حداقل یک تراکنش را برای حذف انتخاب کنید.');
+                return;
+            }
+
+            if (!confirm(`آیا از حذف ${selectedCheckboxes.length} مورد انتخاب‌شده مطمئن هستید؟`)) {
+                return;
+            }
+
+            const selectedIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value, 10));
+            entries = entries.filter(e => !selectedIds.includes(e.id));
+
+            render();
+            await syncToCloud();
+            
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+
+            alert('✅ موارد انتخاب‌شده با موفقیت حذف شدند.');
+        }
+
+        function render() {
+            // یکدست‌سازی تاریخ‌های قدیمی (مثل 1405/05/5) برای مرتب‌سازی و گروه‌بندی درست
+            entries.forEach(e => { e.date = normalizeShamsiDate(e.date); });
+          
+                      const search = searchInput.value.trim().toLowerCase();
+
+            let filtered = entries.filter(e => {
+                return e.name.toLowerCase().includes(search) ||
+                       e.category.toLowerCase().includes(search) ||
+                       (e.note || '').toLowerCase().includes(search);
+            });
+
+            const order = sortOrder.value;
+            filtered.sort((a, b) => {
+                // اولویت اول: تاریخ (با نرمال‌سازی عددی تا 1405/05/5 و 1405/05/10 درست مقایسه شوند)
+                const ka = dateSortKey(a.date), kb = dateSortKey(b.date);
+                if (ka !== kb) {
+                    return order === 'desc' ? kb - ka : ka - kb;
+                }
+                // اگر تاریخ‌ها یکی بود، بر اساس ID مرتب کن
+                if (order === 'desc') {
+                    return b.id - a.id; 
+                } else {
+                    return a.id - b.id; 
+                }
+            });
+
+            let totalIn = 0, totalOut = 0;
+            entries.forEach(e => {
+                if (e.type === 'ورود' || e.type === 'دریافت روزانه') {
+                    totalIn += e.price;
+                } else if (e.type === 'خروج') {
+                    totalOut += e.price;
+                }
+            });
+            let balance = totalIn - totalOut;
+
+            totalInSpan.textContent = formatNumberWithCommas(totalIn);
+            totalOutSpan.textContent = formatNumberWithCommas(totalOut);
+            balanceSpan.textContent = formatNumberWithCommas(balance);
+            totalCountSpan.textContent = entries.length;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center py-8 text-gray-400">
+                            <i class="fa-regular fa-face-smile text-3xl block mb-2"></i>
+                            هیچ موردی با این فیلتر یافت نشد.
+                        </td>
+                    </tr>
+                `;
+                removePaginationUI();
+                return;
+            }
+
+            // محاسبات صفحه‌بندی (۱۵تایی)
+            const totalPages = Math.ceil(filtered.length / rowsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const startIdx = (currentPage - 1) * rowsPerPage;
+            const endIdx = startIdx + rowsPerPage;
+            const paginatedItems = filtered.slice(startIdx, endIdx);
+
+            // جمع مبلغ هر روز (بر اساس همان فیلتر جاری)
+            const dayTotals = {};
+            filtered.forEach(e => {
+                const t = dayTotals[e.date] || (dayTotals[e.date] = { in: 0, out: 0, count: 0 });
+                t.count++;
+                if (e.type === 'خروج') t.out += e.price; else t.in += e.price;
+            });
+
+            let html = '';
+            let lastDate = ''; 
+
+            paginatedItems.forEach((e, index) => {
+                const absoluteIndex = startIdx + index + 1;
+
+                if (e.date !== lastDate) {
+                    lastDate = e.date;
+                    html += `
+                        <tr class="bg-blue-50/80 day-header">
+                            <td colspan="9" class="px-4 py-2 text-xs font-bold text-blue-800">
+                                <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 w-full">
+                                    <span><i class="fa-regular fa-calendar-days ml-1"></i> روز: ${e.date} (${getShamsiDayName(e.date)})</span>
+                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        <span class="text-green-700">📥 ورود: ${formatNumberWithCommas(dayTotals[e.date].in)}</span>
+                                        <span class="text-red-700">📤 خروج: ${formatNumberWithCommas(dayTotals[e.date].out)}</span>
+                                        <span class="text-blue-900">📊 جمع روز: ${formatNumberWithCommas(dayTotals[e.date].in - dayTotals[e.date].out)} تومان</span>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                let badge = '';
+                if (e.type === 'ورود') {
+                    badge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">ورود</span>';
+                } else if (e.type === 'خروج') {
+                    badge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-bold">خروج</span>';
+                } else {
+                    badge = '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold">دریافت روزانه</span>';
+                }
+                
+                html += `
+                    <tr class="border-b hover:bg-gray-50 transition fade-in">
+                        <td class="px-4 py-3" data-label="انتخاب">
+                            <input type="checkbox" class="row-checkbox w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" value="${e.id}">
+                        </td>
+                        <td class="px-4 py-3 text-gray-400 text-xs cell-index" data-label="#">${absoluteIndex}</td>
+                        <td class="px-4 py-3 font-medium text-gray-800" data-label="عنوان">${e.name}</td>
+                        <td class="px-4 py-3" data-label="گروه"><span class="bg-gray-100 px-2 py-0.5 rounded-full text-xs">${e.category}</span></td>
+                        <td class="px-4 py-3" data-label="نوع">${badge}</td>
+                        <td class="px-4 py-3 font-mono text-blue-600" data-label="مبلغ (تومان)">${formatNumberWithCommas(e.price)}</td>
+                       <td class="px-4 py-3 text-xs text-gray-500 font-mono" data-label="تاریخ">${e.date}</td>
+                        <td class="px-4 py-3 text-xs text-gray-500 max-w-[150px] truncate cell-note" data-label="توضیحات">${e.note || '—'}</td>
+                        <td class="px-4 py-3 text-center flex items-center justify-center gap-3 no-print cell-actions">
+                            <button onclick="editEntry(${e.id})" class="edit-btn text-blue-400 hover:text-blue-600 transition" title="ویرایش">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteEntry(${e.id})" class="delete-btn text-red-400 hover:text-red-600 transition" title="حذف">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+
+            renderPaginationControls(totalPages);
+        }
+
+        function renderPaginationControls(totalPages) {
+            let paginationContainer = document.getElementById('paginationContainer');
+            if (!paginationContainer) {
+                paginationContainer = document.createElement('div');
+                paginationContainer.id = 'paginationContainer';
+                paginationContainer.className = 'flex items-center justify-between p-4 bg-white border-t border-gray-200 no-print';
+                document.querySelector('.bg-white.rounded-2xl.shadow-xl.overflow-hidden').appendChild(paginationContainer);
+            }
+
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            paginationContainer.innerHTML = `
+                <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl cursor-not-allowed text-xs"' : 'class="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 transition text-xs font-medium"'}>
+                    <i class="fa-solid fa-arrow-right ml-1"></i> صفحه بعد
+                </button>
+                <span class="text-xs text-gray-600 font-medium">صفحه ${currentPage} از ${totalPages}</span>
+                <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled class="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl cursor-not-allowed text-xs"' : 'class="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 transition text-xs font-medium"'}>
+                    صفحه قبل <i class="fa-solid fa-arrow-left mr-1"></i>
+                </button>
+            `;
+        }
+
+        function removePaginationUI() {
+            const paginationContainer = document.getElementById('paginationContainer');
+            if (paginationContainer) paginationContainer.innerHTML = '';
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            render();
+            window.scrollTo({ top: 400, behavior: 'smooth' });
+        }
+
+        addBtn.addEventListener('click', addEntry);
+
+        itemPrice.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); addEntry(); }
+        });
+        itemName.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); itemPrice.focus(); }
+        });
+
+        itemPrice.addEventListener('input', function() { applyThousandSeparator(this); });
+        itemPrice.addEventListener('blur', function() {
+            if (this.value !== '') {
+                let num = parseNumberFromComma(this.value);
+                if (!isNaN(num) && num > 0) this.value = formatNumberWithCommas(num);
+            }
+        });
+
+        searchInput.addEventListener('input', render);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            render();
+            if (GOOGLE_SCRIPT_URL) {
+                connectToCloud();
+              
+            }
+        
+        });
+      // ==========================================
+        // سیستم قفل امنیتی با رمز عبور ثابت در کد
+        // ==========================================
+        // 🔐 رمز عبور ثابت و فقط از داخل کد قابل تغییر است.
+        // برای عوض کردن رمز، همین مقدار زیر را ویرایش کن و فایل را دوباره منتشر/نصب کن.
+        const APP_PIN = "2001";
+        function getAppPin() { return APP_PIN; }
+        let inactivityTime = 0;
+        const lockTimeLimit = 5; // قفل خودکار پس از ۵ دقیقه عدم فعالیت
+
+        // به محض لود شدن صفحه، قفل نمایش داده شود
+        window.addEventListener('DOMContentLoaded', () => {
+            showLockScreen();
+            initInactivityTimer();
+        });
+
+        // نمایش پنجره قفل
+                function showLockScreen() {
+            let lockModal = document.getElementById('lockModal');
+            if (!lockModal) {
+                lockModal = document.createElement('div');
+                lockModal.id = 'lockModal';
+                
+                // استفاده از ترفند absolute با ۱۰۰٪ کردن عرض و ارتفاع کل صفحه سند برای سازگاری کامل با WebView اندروید
+                lockModal.style.cssText = "position: fixed !important; inset: 0 !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100% !important; min-height: 100dvh !important; z-index: 2147483647 !important; display: flex !important; align-items: center !important; justify-content: center !important; background-color: rgba(15, 23, 42, 0.97) !important; margin: 0 !important; padding: 16px !important; box-sizing: border-box !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important;";
+                
+                lockModal.innerHTML = `
+                    <div style="background: #ffffff; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); padding: 32px 24px; width: 100%; max-width: 320px; text-align: center; box-sizing: border-box; margin: auto;">
+                        <div style="width: 64px; height: 64px; background: #eff6ff; color: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; font-size: 24px;">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 6px;">دفترچه مغازه امن است</h2>
+                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 24px;">رمز عبور ثابت سیستم را وارد کنید</p>
+                        <input type="password" id="unlockPinInput" placeholder="رمز عبور..." style="width: 100%; border: 2px solid #e5e7eb; border-radius: 14px; padding: 12px; text-align: center; font-size: 18px; letter-spacing: 6px; outline: none; margin-bottom: 16px; font-family: monospace; box-sizing: border-box;" autocomplete="current-password">
+                        <button onclick="checkUnlockPin()" style="width: 100%; background: #2563eb; color: white; border: none; border-radius: 14px; padding: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);">
+                            ورود به سیستم 🔓
+                        </button>
+                    </div>
+                `;
+                (document.body || document.documentElement).appendChild(lockModal);
+
+                document.getElementById('unlockPinInput').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') checkUnlockPin();
+                });
+            }
+            lockModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => {
+                const inp = document.getElementById('unlockPinInput');
+                if(inp) inp.focus();
+            }, 100);
+        }
+
+
+        // بررسی رمز عبور ثابت
+        function checkUnlockPin() {
+            const inputVal = document.getElementById('unlockPinInput').value;
+
+            if (inputVal === getAppPin()) {
+                document.getElementById('lockModal').style.display = 'none';
+                document.body.style.overflow = '';
+                document.getElementById('unlockPinInput').value = '';
+                resetInactivityTimer();
+            } else {
+                alert('❌ رمز عبور اشتباه است!');
+                document.getElementById('unlockPinInput').value = '';
+                document.getElementById('unlockPinInput').focus();
+            }
+        }
+
+        // قفل کردن دستی از طریق دکمه بالای صفحه
+        function lockAppManually() {
+            showLockScreen();
+        }
+
+        // تایمر عدم فعالیت
+        function initInactivityTimer() {
+            const resetTimer = () => { inactivityTime = 0; };
+            window.addEventListener('mousemove', resetTimer);
+            window.addEventListener('keypress', resetTimer);
+            window.addEventListener('click', resetTimer);
+            window.addEventListener('scroll', resetTimer);
+
+            setInterval(() => {
+                const lockModal = document.getElementById('lockModal');
+                if (!lockModal || lockModal.style.display === 'none') {
+                    inactivityTime++;
+                    if (inactivityTime >= lockTimeLimit) {
+                        showLockScreen();
+                    }
+                }
+            }, 60000); // هر ۱ دقیقه بررسی می‌کند
+        }
+
+        function resetInactivityTimer() {
+            inactivityTime = 0;
+        }
+      /// تابع دقیق تبدیل تاریخ شمسی به روز هفته (با استفاده از میلادی)
+function getShamsiDayName(shamsiDateStr) {
+    if (!shamsiDateStr) return '';
+    const parts = shamsiDateStr.split('/');
+    if (parts.length !== 3) return '';
+    
+    let jy = parseInt(parts[0], 10);
+    let jm = parseInt(parts[1], 10);
+    let jd = parseInt(parts[2], 10);
+
+    // تبدیل شمسی به میلادی برای محاسبه دقیق روز هفته
+    let gy = (jy <= 979) ? 621 : 1600;
+    jy -= (jy <= 979) ? 0 : 979;
+    
+    let days = (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4) + 
+               78 + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+    
+    gy += 400 * Math.floor(days / 146097);
+    days %= 146097;
+    
+    if (days > 36524) {
+        gy += 100 * Math.floor(--days / 36524);
+        days %= 36524;
+        if (days >= 365) days++;
+    }
+    
+    gy += 4 * Math.floor(days / 1461);
+    days %= 1461;
+    
+    if (days > 365) {
+        gy += Math.floor((days - 1) / 365);
+        days = (days - 1) % 365;
+    }
+    
+    let gd = days + 1;
+    let sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let gm = 0;
+    
+    for (gm = 0; gm < 13; gm++) {
+        let v = sal_a[gm];
+        if (gd <= v) break;
+        gd -= v;
+    }
+    
+    // ساخت تاریخ میلادی و گرفتن روز هفته (0 یکشنبه تا 6 شنبه)
+    let gDate = new Date(gy, gm - 1, gd);
+    let gDay = gDate.getDay(); // 0: یکشنبه, 1: دوشنبه, ... , 6: شنبه
+    
+    // تطبیق با آرایه روزهای هفته ایران (شروع از شنبه)
+    // در جاوااسکریپت: 6 شنبه است، 0 یکشنبه، 1 دوشنبه، 2 سه‌شنبه، 3 چهارشنبه، 4 پنجشنبه، 5 جمعه
+    const weekDaysMap = {
+        6: 'شنبه',
+        0: 'یکشنبه',
+        1: 'دوشنبه',
+        2: 'سه‌شنبه',
+        3: 'چهارشنبه',
+        4: 'پنجشنبه',
+        5: 'جمعه'
+    };
+    
+    return weekDaysMap[gDay] || '';
+}
+    </script>
+    <script src="native-bridge.js"></script>
+    <script src="native-backup.js"></script>
+</body>
+</html>

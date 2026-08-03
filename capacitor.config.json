@@ -1,0 +1,11 @@
+{
+  "appId": "com.maghaze.hesab",
+  "appName": "حساب مغازه",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
